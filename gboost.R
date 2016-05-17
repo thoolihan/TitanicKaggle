@@ -1,19 +1,19 @@
 library(xgboost)
 library(dplyr)
 
-titanic.train <- function(df) {
-  X <- data.matrix(select(df, -Survived))
-  y <- df$Survived
+titanic.train <- function(X, y) {
   xgboost(data = X, 
           label = y,
-          nrounds = 10,
+          nthreads = 4,
+          nrounds = 200,
           max.depth = 10,
-          lambda = 2,
+          lambda = 1,
           objective = "binary:logistic")
 }
 
 titanic.predict <- function(df, model) {
-  df$Prob <- xgboost::predict(model, data.matrix(df))
+  X = data.matrix(df)
+  df$Prob <- xgboost::predict(model, X)
   df$Output <- round(df$Prob, 0)
   df
 }

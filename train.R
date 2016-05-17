@@ -17,19 +17,19 @@ titanic.prepare <- function(df, median_age) {
   row.names(df) <- df$PassengerId
   
   df <- mutate(df,
-                    Survived = Survived,
-                    FirstClass = ifelse(Pclass == 1, 1, 0),
-                    SecondClass = ifelse(Pclass == 2, 1, 0),
-                    ThirdClass = ifelse(Pclass == 3, 1, 0),
-                    Male = ifelse(Sex == 'male', 1, 0),
-                    Female = ifelse(Sex == 'female', 1, 0),
-                    Age = ifelse(is.na(Age), median_age, Age),
-                    Cherbourg = ifelse(Embarked == 'C', 1, 0),
-                    Queenstown = ifelse(Embarked == 'Q', 1, 0),
-                    Southampton = ifelse(Embarked == 'S', 1, 0)
+               Survived = Survived,
+               FirstClass = ifelse(Pclass == 1, 1, 0),
+               SecondClass = ifelse(Pclass == 2, 1, 0),
+               ThirdClass = ifelse(Pclass == 3, 1, 0),
+               Male = ifelse(Sex == 'male', 1, 0),
+               Female = ifelse(Sex == 'female', 1, 0),
+               Age = ifelse(is.na(Age), median_age, Age),
+               Cherbourg = ifelse(Embarked == 'C', 1, 0),
+               Queenstown = ifelse(Embarked == 'Q', 1, 0),
+               Southampton = ifelse(Embarked == 'S', 1, 0)
   )
   
-  df <- select(df, -Name, -Pclass, -Sex, -Ticket, -Cabin, -Embarked) 
+  df <- select(df, -Name, -Pclass, -Sex, -Ticket, -Cabin, -Embarked, -PassengerId) 
   df
 }
 
@@ -49,7 +49,9 @@ if(test_run) {
 }
 
 # train
-model = titanic.train(train)
+X = data.matrix(select(train, -Survived))
+y = train$Survived
+model = titanic.train(X, y)
 
 # predict
 test <- titanic.predict(test, model)
@@ -73,7 +75,13 @@ score <- function(label, predicted) {
 
 # output for test runs, write file for submission
 if(test_run) {
-  print(score(test$Survived, test$Output))
+  scores <- data.frame(acc = numeric(), 
+                       prec = numeric(), 
+                       rec = numeric(), 
+                       f1 = numeric())
+  scores['gboost',] <- score(test$Survived, test$Output)
+  arrange(scores, desc(f1))
+  print(scores)
 }
 
 
