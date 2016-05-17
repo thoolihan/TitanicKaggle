@@ -1,7 +1,7 @@
 library(dplyr)
-source('gboost.R')
-source('logreg.R')
-source('rforest.R')
+source('engines/gboost.R')
+source('engines/logreg.R')
+source('engines/rforest.R')
 
 test_run = TRUE
 train_pct = 0.8
