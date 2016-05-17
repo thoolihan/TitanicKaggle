@@ -23,7 +23,10 @@ titanic.prepare <- function(df, median_age) {
                ThirdClass = ifelse(Pclass == 3, 1, 0),
                Male = ifelse(Sex == 'male', 1, 0),
                Female = ifelse(Sex == 'female', 1, 0),
-               Age = ifelse(is.na(Age), median_age, Age),
+               SibSp = SibSp / 10.0,
+               Parch = Parch / 5.0,
+               Age = ifelse(is.na(Age), median_age, Age) / 100.0,
+               Fare = Fare / 600.0,
                Cherbourg = ifelse(Embarked == 'C', 1, 0),
                Queenstown = ifelse(Embarked == 'Q', 1, 0),
                Southampton = ifelse(Embarked == 'S', 1, 0)

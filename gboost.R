@@ -6,8 +6,8 @@ titanic.train <- function(X, y) {
           label = y,
           nthreads = 4,
           nrounds = 200,
-          max.depth = 10,
-          lambda = 1,
+          #max.depth = 50,
+          #lambda = 0.5,
           objective = "binary:logistic")
 }
 
