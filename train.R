@@ -61,10 +61,11 @@ if(test_run) { # split the training set
 # train
 X <- data.matrix(select(train, -Survived, -PassengerId))
 y <- train$Survived
+yf <- as.factor(y)
 logreg.model <- logreg.train(X, y)
-svm.model <- svm.train(X, y)
+svm.model <- svm.train(X, yf)
 gboost.model <- gboost.train(X, y)
-rforest.model <- rforest.train(X, y)
+rforest.model <- rforest.train(X, yf)
 
 # predict
 if(test_run) {

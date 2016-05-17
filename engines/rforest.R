@@ -12,6 +12,6 @@ rforest.predict <- function(X, model) {
   prob = predict(model, X)
   list(
     Prob = prob,
-    Output = round(prob, 0)
+    Output = prob
   )
 }
