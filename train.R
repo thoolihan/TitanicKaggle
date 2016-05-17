@@ -1,5 +1,7 @@
 library(dplyr)
 source('gboost.R')
+source('logreg.R')
+source('rforest.R')
 
 test_run = TRUE
 train_pct = 0.7
@@ -17,6 +19,7 @@ titanic.prepare <- function(df, median_age) {
   row.names(df) <- df$PassengerId
   
   df <- mutate(df,
+               Bias = 1,
                Survived = Survived,
                FirstClass = ifelse(Pclass == 1, 1, 0),
                SecondClass = ifelse(Pclass == 2, 1, 0),
@@ -29,7 +32,13 @@ titanic.prepare <- function(df, median_age) {
                Fare = Fare / 600.0,
                Cherbourg = ifelse(Embarked == 'C', 1, 0),
                Queenstown = ifelse(Embarked == 'Q', 1, 0),
-               Southampton = ifelse(Embarked == 'S', 1, 0)
+               Southampton = ifelse(Embarked == 'S', 1, 0),
+               FCW = FirstClass * Female,
+               FCM = FirstClass * Male,
+               SCW = SecondClass * Female,
+               SCM = SecondClass * Male,
+               TCW = SecondClass * Female,
+               TCM = ThirdClass * Male
   )
   
   df <- select(df, -Name, -Pclass, -Sex, -Ticket, -Cabin, -Embarked, -PassengerId) 
@@ -54,10 +63,20 @@ if(test_run) {
 # train
 X = data.matrix(select(train, -Survived))
 y = train$Survived
-model = titanic.train(X, y)
+gboost.model = gboost.train(X, y)
+logreg.model = logreg.train(X, y)
+rforest.model = rforest.train(X, y)
 
 # predict
-test <- titanic.predict(test, model)
+X2 = data.matrix(select(test, -Survived))
+apply_results <- function(df, result_list) {
+  df[, 'Prob'] <- result_list$Prob
+  df[, 'Output'] <- result_list$Output
+  df
+}
+gboost.test <- apply_results(test, gboost.predict(X2, gboost.model))
+logreg.test <- apply_results(test, logreg.predict(X2, logreg.model))
+rforest.test <- apply_results(test, rforest.predict(X2, rforest.model))
 
 # score
 score <- function(label, predicted) {
@@ -82,7 +101,9 @@ if(test_run) {
                        prec = numeric(), 
                        rec = numeric(), 
                        f1 = numeric())
-  scores['gboost',] <- score(test$Survived, test$Output)
+  scores['gboost',] <- score(gboost.test$Survived, gboost.test$Output)
+  scores['logreg',] <- score(logreg.test$Survived, logreg.test$Output)
+  scores['rforest',] <- score(rforest.test$Survived, rforest.test$Output)
   arrange(scores, desc(f1))
   print(scores)
 }
