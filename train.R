@@ -3,8 +3,8 @@ source('gboost.R')
 source('logreg.R')
 source('rforest.R')
 
-test_run = FALSE
-train_pct = 0.7
+test_run = TRUE
+train_pct = 0.8
 
 # read
 train_raw <- read.csv("data/train.csv", header = TRUE)
@@ -40,6 +40,7 @@ titanic.prepare <- function(df, median_age, median_fare) {
   df
 }
 
+# get median values for fields that have NAs
 m_age = median(train_raw$Age, na.rm = TRUE)
 m_fare = median(train_raw$Fare, na.rm = TRUE)
 
@@ -48,11 +49,11 @@ train <- titanic.prepare(train_raw, m_age, m_fare)
 # randomize
 train <- train[sample(nrow(train)),]
 
-if(test_run) {
+if(test_run) { # split the training set
   split <- 0:floor(train_pct * nrow(train))
   test <- train[-(split),]
   train <- train[split,]
-} else {
+} else { # use the test file set
   test <- titanic.prepare(test_raw, m_age, m_fare)
 }
 
@@ -64,11 +65,13 @@ logreg.model <- logreg.train(X, y)
 rforest.model <- rforest.train(X, y)
 
 # predict
-X2 <- data.matrix(select(test, -PassengerId))
 if(test_run) {
-  X2 <- X2[,-'Survived']
+  X2 <- data.matrix(select(test, -PassengerId, -Survived))
+} else {
+  X2 <- data.matrix(select(test, -PassengerId))
 }
 
+# add output to test set df
 apply_results <- function(df, result_list) {
   df[, 'Prob'] <- result_list$Prob
   df[, 'Output'] <- result_list$Output
@@ -78,7 +81,7 @@ gboost.test <- apply_results(test, gboost.predict(X2, gboost.model))
 logreg.test <- apply_results(test, logreg.predict(X2, logreg.model))
 rforest.test <- apply_results(test, rforest.predict(X2, rforest.model))
 
-# score
+# output for test runs, write file for submission
 score <- function(label, predicted) {
   tp <- sum(label == 1 & predicted == 1)
   tn <- sum(label == 0 & predicted == 0)
@@ -95,7 +98,6 @@ score <- function(label, predicted) {
   results
 }
 
-# output for test runs, write file for submission
 if(test_run) {
   scores <- data.frame(acc = numeric(), 
                        prec = numeric(), 
