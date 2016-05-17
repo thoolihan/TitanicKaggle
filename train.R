@@ -3,7 +3,7 @@ source('gboost.R')
 source('logreg.R')
 source('rforest.R')
 
-test_run = TRUE
+test_run = FALSE
 train_pct = 0.7
 
 # read
@@ -11,16 +11,11 @@ train_raw <- read.csv("data/train.csv", header = TRUE)
 test_raw <- read.csv("data/test.csv", header = TRUE)
 
 # prepare
-titanic.median_age <- function(vec) {
-  median(vec, na.rm = TRUE)
-}
-
-titanic.prepare <- function(df, median_age) {
+titanic.prepare <- function(df, median_age, median_fare) {
   row.names(df) <- df$PassengerId
   
   df <- mutate(df,
                Bias = 1,
-               Survived = Survived,
                FirstClass = ifelse(Pclass == 1, 1, 0),
                SecondClass = ifelse(Pclass == 2, 1, 0),
                ThirdClass = ifelse(Pclass == 3, 1, 0),
@@ -29,7 +24,7 @@ titanic.prepare <- function(df, median_age) {
                SibSp = SibSp / 10.0,
                Parch = Parch / 5.0,
                Age = ifelse(is.na(Age), median_age, Age) / 100.0,
-               Fare = Fare / 600.0,
+               Fare = ifelse(is.na(Fare), median_fare, Fare) / 600.0,
                Cherbourg = ifelse(Embarked == 'C', 1, 0),
                Queenstown = ifelse(Embarked == 'Q', 1, 0),
                Southampton = ifelse(Embarked == 'S', 1, 0),
@@ -37,38 +32,43 @@ titanic.prepare <- function(df, median_age) {
                FCM = FirstClass * Male,
                SCW = SecondClass * Female,
                SCM = SecondClass * Male,
-               TCW = SecondClass * Female,
+               TCW = ThirdClass * Female,
                TCM = ThirdClass * Male
   )
   
-  df <- select(df, -Name, -Pclass, -Sex, -Ticket, -Cabin, -Embarked, -PassengerId) 
+  df <- select(df, -Name, -Pclass, -Sex, -Ticket, -Cabin, -Embarked) 
   df
 }
 
-m_age = titanic.median_age(train_raw$Age)
+m_age = median(train_raw$Age, na.rm = TRUE)
+m_fare = median(train_raw$Fare, na.rm = TRUE)
 
-train <- titanic.prepare(train_raw, m_age)
+train <- titanic.prepare(train_raw, m_age, m_fare)
 
 # randomize
 train <- train[sample(nrow(train)),]
 
 if(test_run) {
-  split = 0:floor(train_pct * nrow(train))
-  test = train[-(split),]
-  train = train[split,]
+  split <- 0:floor(train_pct * nrow(train))
+  test <- train[-(split),]
+  train <- train[split,]
 } else {
-  test <- titanic.prepare(test_raw, m_age)
+  test <- titanic.prepare(test_raw, m_age, m_fare)
 }
 
 # train
-X = data.matrix(select(train, -Survived))
-y = train$Survived
-gboost.model = gboost.train(X, y)
-logreg.model = logreg.train(X, y)
-rforest.model = rforest.train(X, y)
+X <- data.matrix(select(train, -Survived, -PassengerId))
+y <- train$Survived
+gboost.model <- gboost.train(X, y)
+logreg.model <- logreg.train(X, y)
+rforest.model <- rforest.train(X, y)
 
 # predict
-X2 = data.matrix(select(test, -Survived))
+X2 <- data.matrix(select(test, -PassengerId))
+if(test_run) {
+  X2 <- X2[,-'Survived']
+}
+
 apply_results <- function(df, result_list) {
   df[, 'Prob'] <- result_list$Prob
   df[, 'Output'] <- result_list$Output
@@ -90,8 +90,8 @@ score <- function(label, predicted) {
     prec = round(tp / (tp + fp), 3),
     rec = round(tp / (fn + tp), 3)
   )
-  
-  results$f1 = round(2 * (results$prec * results$rec) / (results$prec + results$rec), 3)
+  results$f1 = round(2 * (results$prec * results$rec) / 
+                       (results$prec + results$rec), 3)
   results
 }
 
@@ -106,6 +106,23 @@ if(test_run) {
   scores['rforest',] <- score(rforest.test$Survived, rforest.test$Output)
   arrange(scores, desc(f1))
   print(scores)
+} else {
+  ts = format(Sys.time(), "%Y.%m.%d.%H.%M.%S")
+  write_results <- function(df, name, subdir = ts) {
+    df <- mutate(df, Survived = Output) %>%
+      select(PassengerId, Survived) %>%
+      arrange(PassengerId)
+    dir = paste('output/', subdir, sep = "")
+    if(!dir.exists(dir)) {
+      dir.create(dir)
+    }
+    fname <- paste(dir, '/', name, sep = "")
+    write.csv(df, file = fname, row.names = FALSE, quote = FALSE)
+    print(paste('wrote', fname))
+  }
+  write_results(gboost.test, 'gboost.csv')
+  write_results(logreg.test, 'logreg.csv')
+  write_results(rforest.test, 'rforest.csv')
 }
 
 
