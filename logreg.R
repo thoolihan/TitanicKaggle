@@ -33,7 +33,7 @@ logreg.train <- function(X, y) {
 }
 
 logreg.predict <- function(X, model) {
-  prob <- sigmoid(X %*% model$par)
+  prob <- sigmoid(X %*% model$par)[,1]
   list(
     Prob = prob,
     Output = ifelse(prob > 0.5, 1, 0)
