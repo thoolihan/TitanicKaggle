@@ -2,6 +2,7 @@ library(dplyr)
 source('engines/logreg.R')
 source('engines/svm.R')
 source('engines/gboost.R')
+source('engines/rp.R')
 source('engines/rforest.R')
 
 test_run = TRUE
@@ -65,6 +66,7 @@ yf <- as.factor(y)
 logreg.model <- logreg.train(X, y)
 svm.model <- svm.train(X, yf)
 gboost.model <- gboost.train(X, y)
+rp.model <- rp.train(X, y)
 rforest.model <- rforest.train(X, yf)
 
 # predict
@@ -83,6 +85,7 @@ apply_results <- function(df, result_list) {
 logreg.test <- apply_results(test, logreg.predict(X2, logreg.model))
 svm.test <- apply_results(test, svm.predict(X2, svm.model))
 gboost.test <- apply_results(test, gboost.predict(X2, gboost.model))
+rp.test <- apply_results(test, rp.predict(X2, rp.model))
 rforest.test <- apply_results(test, rforest.predict(X2, rforest.model))
 
 # output for test runs, write file for submission
@@ -110,6 +113,7 @@ if(test_run) {
   scores['logreg',] <- score(logreg.test$Survived, logreg.test$Output)
   scores['svm',] <- score(svm.test$Survived, svm.test$Output)
   scores['gboost',] <- score(gboost.test$Survived, gboost.test$Output)  
+  scores['rpart',] <- score(rp.test$Survived, rp.test$Output)    
   scores['rforest',] <- score(rforest.test$Survived, rforest.test$Output)
   arrange(scores, desc(f1))
   print(scores)
@@ -130,6 +134,7 @@ if(test_run) {
   write_results(logreg.test, 'logreg.csv')
   write_results(svm.test, 'svm.csv')
   write_results(gboost.test, 'gboost.csv')  
+  write_results(rp.test, 'rp.csv')  
   write_results(rforest.test, 'rforest.csv')
 }
 
