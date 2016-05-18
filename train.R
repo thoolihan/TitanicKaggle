@@ -1,9 +1,11 @@
 library(dplyr)
+library(caret)
 source('engines/logreg.R')
 source('engines/svm.R')
 source('engines/gboost.R')
 source('engines/rp.R')
 source('engines/rforest.R')
+source('engines/rf.R')
 
 test_run = TRUE
 train_pct = 0.8
@@ -68,6 +70,7 @@ svm.model <- svm.train(X, yf)
 gboost.model <- gboost.train(X, y)
 rp.model <- rp.train(X, y)
 rforest.model <- rforest.train(X, yf)
+rf.model <- rf.train(X, yf)
 
 # predict
 if(test_run) {
@@ -87,6 +90,7 @@ svm.test <- apply_results(test, svm.predict(X2, svm.model))
 gboost.test <- apply_results(test, gboost.predict(X2, gboost.model))
 rp.test <- apply_results(test, rp.predict(X2, rp.model))
 rforest.test <- apply_results(test, rforest.predict(X2, rforest.model))
+rf.test <- apply_results(test, rf.predict(X2, rf.model))
 
 # output for test runs, write file for submission
 score <- function(label, predicted) {
@@ -115,6 +119,7 @@ if(test_run) {
   scores['gboost',] <- score(gboost.test$Survived, gboost.test$Output)  
   scores['rpart',] <- score(rp.test$Survived, rp.test$Output)    
   scores['rforest',] <- score(rforest.test$Survived, rforest.test$Output)
+  scores['rf(caret)'] <- score(rf.test$Survived, rf.test$Output)
   arrange(scores, desc(f1))
   print(scores)
 } else {
