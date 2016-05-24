@@ -28,7 +28,6 @@ titanic.prepare <- function(df, median_age, median_fare) {
          Fare = ifelse(is.na(Fare), median_fare, Fare),
          Embarked = ifelse(is.na(Embarked), 'S', Embarked)) %>%
     select(-Name, -Fare, -Cabin, -Ticket)
-  # df$Embarked <- factor(df$Embarked)
   df$Pclass <- revalue(df$Pclass, c("1" = "First", "2" = "Second", "3" = "Third"))
   if('Survived' %in% colnames(df)) { 
     df$Survived = revalue(df$Survived, c("0" = "Perished", "1" = "Survived"))
@@ -59,26 +58,39 @@ cv.ctrl <- trainControl(method = "repeatedcv",
                         summaryFunction = twoClassSummary,
                         classProbs = TRUE)
 
-tg <- data.frame(.ncomp = 1:23)
-#tg <- expand.grid(.treesize = 1:30, .ntrees = 1:30)
-model <- train(Survived ~ Sex * Age * Pclass * I(SibSp + Parch), 
+pls_tg <- data.frame(.ncomp = 1:23)
+pls_model <- train(Survived ~ Sex * Age * Pclass * I(SibSp + Parch), 
              data = data.train, 
              method = "pls",
              metric = "ROC",
-             tuneGrid = tg,
+             tuneGrid = pls_tg,
              preProcess = c("center", "scale"),
              trControl = cv.ctrl)
 
+rf_tg <- data.frame(.mtry = 2:8)
+rf_model <- train(Survived ~ Sex * Age * Pclass * I(SibSp + Parch), 
+                   data = data.train, 
+                   method = "rf",
+                   metric = "ROC",
+                   tuneGrid = rf_tg,
+                   preProcess = c("center", "scale"),
+                   trControl = cv.ctrl)
+
+
 # predict
-output <- predict(model, data.test)
-data.test$Output <- output
+data.test$pls_output <- predict(pls_model, data.test)
+data.test$rf_output <- predict(rf_model, data.test)
 
 if(test_run) {
-  print(confusionMatrix(data.test$Output, data.test$Survived))
+  print(plot(pls_model))
+  print(plot(rf_model))
+  resamp <- resamples(list(pls = pls_model,
+                           rf = rf_model))
+  print(summary(resamp))
 } else {
   ts = format(Sys.time(), "%Y.%m.%d.%H.%M.%S")
-  write_results <- function(df, name, subdir = ts) {
-    df <- mutate(df, Survived = revalue(Output, c('Perished' = 0, 'Survived' = 1))) %>%
+  write_results <- function(df, name, output_col, subdir = ts) {
+    df <- mutate(df, Survived = revalue(output_col, c('Perished' = 0, 'Survived' = 1))) %>%
       select(PassengerId, Survived)
     dir = paste('output/', subdir, sep = "")
     if(!dir.exists(dir)) {
@@ -88,7 +100,8 @@ if(test_run) {
     write.csv(df, file = fname, row.names = FALSE, quote = FALSE)
     print(paste('wrote', fname))
   }
-  write_results(data.test, 'entry.csv')
+  write_results(data.test, 'pls.csv', data.test$pls_output)
+  write_results(data.test, 'rf.csv', data.test$rf_output)
 }
 
 
