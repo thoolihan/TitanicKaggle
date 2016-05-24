@@ -1,5 +1,7 @@
 library(plyr)
 library(dplyr)
+library(doMC)
+registerDoMC(cores = 4)
 library(foreach)
 library(caret)
 library(e1071)
@@ -24,10 +26,13 @@ titanic.prepare <- function(df, median_age, median_fare) {
          Family = as.integer(SibSp + Parch + 1),
          Age = ifelse(is.na(Age), median_age, Age),
          Fare = ifelse(is.na(Fare), median_fare, Fare),
-         Embarked = ifelse(is.na(Embarked), 'S', Embarked)
-  )
-  df$Embarked <- factor(df$Embarked)
-  if(test_run) { df <- mutate(df, Survived = revalue(Survived, c("0" = "Perished", "1" = "Survived"))) }
+         Embarked = ifelse(is.na(Embarked), 'S', Embarked)) %>%
+    select(-Name, -Fare, -Cabin, -Ticket)
+  # df$Embarked <- factor(df$Embarked)
+  df$Pclass <- revalue(df$Pclass, c("1" = "First", "2" = "Second", "3" = "Third"))
+  if('Survived' %in% colnames(df)) { 
+    df$Survived = revalue(df$Survived, c("0" = "Perished", "1" = "Survived"))
+  }
   df
 }
 
@@ -45,6 +50,7 @@ if(test_run) { # split the training set
   data.train <- data.train[train.rows,]
 } else { # use the test file set
   data.test <- titanic.prepare(test.raw, m_age, m_fare)
+  data.test$Survived = NA
 }
 
 # train
@@ -53,9 +59,9 @@ cv.ctrl <- trainControl(method = "repeatedcv",
                         summaryFunction = twoClassSummary,
                         classProbs = TRUE)
 
-model <- train(Survived ~ Sex + Pclass + Age + Embarked + Family, 
+model <- train(Survived ~ ., 
              data = data.train, 
-             method = "glm",
+             method = "pls",
              metric = "ROC",
              preProcess = c("center", "scale"),
              trControl = cv.ctrl)
@@ -69,7 +75,7 @@ if(test_run) {
 } else {
   ts = format(Sys.time(), "%Y.%m.%d.%H.%M.%S")
   write_results <- function(df, name, subdir = ts) {
-    df <- mutate(df, Survived = Output) %>%
+    df <- mutate(df, Survived = revalue(Output, c('Perished' = 0, 'Survived' = 1))) %>%
       select(PassengerId, Survived)
     dir = paste('output/', subdir, sep = "")
     if(!dir.exists(dir)) {
@@ -79,7 +85,7 @@ if(test_run) {
     write.csv(df, file = fname, row.names = FALSE, quote = FALSE)
     print(paste('wrote', fname))
   }
-  write_results(dta.test, 'logreg.csv')
+  write_results(data.test, 'entry.csv')
 }
 
 
