@@ -72,16 +72,28 @@ build_model <- function(form, learn_method, tune_grid) {
 
 pls_tg <- data.frame(.ncomp = 3:10)
 pls_model <- build_model(Survived ~ .,
-                         learn_method = "pls", 
+                         learn_method = "pls",
                          tune_grid = pls_tg)
 
 rf_tg <- data.frame(.mtry = 2:8)
 rf_model <- build_model(Survived ~ .,
-                        learn_method = "parRF", 
+                        learn_method = "parRF",
                         tune_grid = rf_tg)
 
-ba_model <- train(Survived ~ ., 
+svm_tg <- expand.grid(.cost = 2:4, .gamma = (0:4)/2)
+svm_model <- build_model(Survived ~ .,
+                         learn_method = "svmLinear2",
+                         tune_grid = svm_tg)
+
+lda_model <- train(Survived ~ ., 
                   data = data.train, 
+                  method = "lda",
+                  metric = "ROC",
+                  preProcess = c("center", "scale"),
+                  trControl = cv.ctrl)
+
+ba_model <- train(Survived ~ .,
+                  data = data.train,
                   method = "bayesglm",
                   metric = "ROC",
                   preProcess = c("center", "scale"),
@@ -91,15 +103,21 @@ ba_model <- train(Survived ~ .,
 data.test$pls_output <- predict(pls_model, data.test)
 data.test$rf_output <- predict(rf_model, data.test)
 data.test$ba_output <- predict(ba_model, data.test)
+data.test$svm_output <- predict(svm_model, data.test)
+data.test$lda_output <- predict(lda_model, data.test)
 
 if(test_run) {
   print(plot(pls_model))
   print(plot(rf_model))
+  print(plot(svm_model))
   resamp <- resamples(list(pls = pls_model,
                            rf = rf_model,
-                           ba = ba_model))
+                           ba = ba_model,
+                           svm = svm_model,
+                           lda = lda_model))
   print(summary(resamp))
   print(xyplot(resamp, what = "BlandAltman"))
+
 } else {
   ts = format(Sys.time(), "%Y.%m.%d.%H.%M.%S")
   write_results <- function(df, name, output_col, subdir = ts) {
@@ -116,6 +134,8 @@ if(test_run) {
   write_results(data.test, 'pls.csv', data.test$pls_output)
   write_results(data.test, 'rf.csv', data.test$rf_output)
   write_results(data.test, 'ba.csv', data.test$ba_output)
+  write_results(data.test, 'svm.csv', data.test$svm_output)
+  write_results(data.test, 'lda.csv', data.test$lda_output)  
 }
 
 
