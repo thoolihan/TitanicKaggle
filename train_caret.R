@@ -7,7 +7,7 @@ library(caret)
 library(e1071)
 library(pROC)
 
-test_run = FALSE
+test_run = TRUE
 
 # read
 column.types <- c('integer', 'factor', 'factor', 'character', 'factor', 
@@ -99,12 +99,39 @@ ba_model <- train(Survived ~ .,
                   preProcess = c("center", "scale"),
                   trControl = cv.ctrl)
 
+nn_tg <- expand.grid(.size = 4, .decay = (0:16)/32)
+nn_model <- build_model(Survived ~ ., 
+                        learn_method = "nnet", 
+                        tune_grid = nn_tg)
+
+mlp_tg <- expand.grid(.layer1 = c(4,6), .layer2 = c(4,6), .layer3 = c(4,6))
+mlp_model <- build_model(Survived ~ .,
+                         learn_method = "mlpML",
+                         tune_grid = mlp_tg)
+
 # predict
 data.test$pls_output <- predict(pls_model, data.test)
 data.test$rf_output <- predict(rf_model, data.test)
 data.test$ba_output <- predict(ba_model, data.test)
 data.test$svm_output <- predict(svm_model, data.test)
 data.test$lda_output <- predict(lda_model, data.test)
+data.test$nn_output <- predict(nn_model, data.test)
+data.test$mlp_output <- predict(mlp_model, data.test)
+vote <- function(x) {
+  ifelse(x == 'Survived', 1, 0)
+}
+
+data.test <- 
+  mutate(data.test, 
+         pls = vote(pls_output),
+         rf = vote(rf_output),
+         ba = vote(ba_output),
+         svm = vote(svm_output),
+         lda = vote(lda_output),
+         nn = vote(nn_output),
+         mlp = vote(mlp_output),
+         votes = pls + rf + ba + svm + lda + nn + mlp,
+         Consensus = factor(ifelse(votes > 3, 'Survived', 'Perished')))
 
 if(test_run) {
   print(plot(pls_model))
@@ -114,10 +141,11 @@ if(test_run) {
                            rf = rf_model,
                            ba = ba_model,
                            svm = svm_model,
-                           lda = lda_model))
+                           lda = lda_model,
+                           nn = nn_model,
+                           mlp = mlp_model))
   print(summary(resamp))
-  print(xyplot(resamp, what = "BlandAltman"))
-
+  print(caret::confusionMatrix(data.test$Consensus, data.test$Survived))
 } else {
   ts = format(Sys.time(), "%Y.%m.%d.%H.%M.%S")
   write_results <- function(df, name, output_col, subdir = ts) {
@@ -136,6 +164,9 @@ if(test_run) {
   write_results(data.test, 'ba.csv', data.test$ba_output)
   write_results(data.test, 'svm.csv', data.test$svm_output)
   write_results(data.test, 'lda.csv', data.test$lda_output)  
+  write_results(data.test, 'nn.csv', data.test$nn_output) 
+  write_results(data.test, 'nn.csv', data.test$nn_output) 
+  write_results(data.test, 'consensus.csv', data.test$Consensus)
 }
 
 
