@@ -40,7 +40,7 @@ titanic.prepare <- function(df, median_age, median_fare) {
                TCM = ThirdClass * Male
   )
   
-  df <- select(df, -Name, -Pclass, -Sex, -Ticket, -Cabin, -Embarked) 
+  df <- dplyr::select(df, -Name, -Pclass, -Sex, -Ticket, -Cabin, -Embarked) 
   df
 }
 
@@ -62,11 +62,11 @@ if(test_run) { # split the training set
 }
 
 # train
-X <- data.matrix(select(train, -Survived, -PassengerId))
+X <- data.matrix(dplyr::select(train, -Survived, -PassengerId))
 y <- train$Survived
 yf <- as.factor(y)
 logreg.model <- logreg.train(X, y)
-svm.model <- svm.train(X, yf)
+svm.model <- svm.train(data.matrix(dplyr::select(train, -Survived, -PassengerId, -Bias)), yf)
 gboost.model <- gboost.train(X, y)
 rp.model <- rp.train(X, y)
 rforest.model <- rforest.train(X, yf)
@@ -74,9 +74,11 @@ rforest.model <- rforest.train(X, yf)
 
 # predict
 if(test_run) {
-  X2 <- data.matrix(select(test, -PassengerId, -Survived))
+  X2 <- data.matrix(dplyr::select(test, -PassengerId, -Survived))
+  X3 <- data.matrix(dplyr::select(test, -PassengerId, -Survived, -Bias))
 } else {
-  X2 <- data.matrix(select(test, -PassengerId))
+  X2 <- data.matrix(dplyr::select(test, -PassengerId))
+  X3 <- data.matrix(dplyr::select(test, -PassengerId, -Bias))
 }
 
 # add output to test set df
@@ -86,7 +88,7 @@ apply_results <- function(df, result_list) {
   df
 }
 logreg.test <- apply_results(test, logreg.predict(X2, logreg.model))
-svm.test <- apply_results(test, svm.predict(X2, svm.model))
+svm.test <- apply_results(test, svm.predict(X3, svm.model))
 gboost.test <- apply_results(test, gboost.predict(X2, gboost.model))
 rp.test <- apply_results(test, rp.predict(X2, rp.model))
 rforest.test <- apply_results(test, rforest.predict(X2, rforest.model))
@@ -127,7 +129,7 @@ if(test_run) {
   ts = format(Sys.time(), "%Y.%m.%d.%H.%M.%S")
   write_results <- function(df, name, subdir = ts) {
     df <- mutate(df, Survived = Output) %>%
-      select(PassengerId, Survived) %>%
+      dplyr::select(PassengerId, Survived) %>%
       arrange(PassengerId)
     dir = paste('output/', subdir, sep = "")
     if(!dir.exists(dir)) {
