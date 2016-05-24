@@ -59,10 +59,13 @@ cv.ctrl <- trainControl(method = "repeatedcv",
                         summaryFunction = twoClassSummary,
                         classProbs = TRUE)
 
-model <- train(Survived ~ ., 
+tg <- data.frame(.ncomp = 1:23)
+#tg <- expand.grid(.treesize = 1:30, .ntrees = 1:30)
+model <- train(Survived ~ Sex * Age * Pclass * I(SibSp + Parch), 
              data = data.train, 
              method = "pls",
              metric = "ROC",
+             tuneGrid = tg,
              preProcess = c("center", "scale"),
              trControl = cv.ctrl)
 
