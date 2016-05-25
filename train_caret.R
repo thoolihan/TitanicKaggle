@@ -70,21 +70,25 @@ build_model <- function(form, learn_method, tune_grid) {
         trControl = cv.ctrl)
 }
 
+print('building pls model')
 pls_tg <- data.frame(.ncomp = 3:10)
 pls_model <- build_model(Survived ~ .,
                          learn_method = "pls",
                          tune_grid = pls_tg)
 
+print('building rf model')
 rf_tg <- data.frame(.mtry = 2:8)
 rf_model <- build_model(Survived ~ .,
                         learn_method = "parRF",
                         tune_grid = rf_tg)
 
+print('building svm model')
 svm_tg <- expand.grid(.cost = 2:4, .gamma = (0:4)/2)
 svm_model <- build_model(Survived ~ .,
                          learn_method = "svmLinear2",
                          tune_grid = svm_tg)
 
+print('building lda model')
 lda_model <- train(Survived ~ ., 
                   data = data.train, 
                   method = "lda",
@@ -92,6 +96,7 @@ lda_model <- train(Survived ~ .,
                   preProcess = c("center", "scale"),
                   trControl = cv.ctrl)
 
+print('building bayes model')
 ba_model <- train(Survived ~ .,
                   data = data.train,
                   method = "bayesglm",
@@ -99,11 +104,13 @@ ba_model <- train(Survived ~ .,
                   preProcess = c("center", "scale"),
                   trControl = cv.ctrl)
 
+print('building neural net')
 nn_tg <- expand.grid(.size = 4, .decay = (0:16)/32)
 nn_model <- build_model(Survived ~ ., 
                         learn_method = "nnet", 
                         tune_grid = nn_tg)
 
+print('building multilayer perceptron')
 mlp_tg <- expand.grid(.layer1 = c(4,6), .layer2 = c(4,6), .layer3 = c(4,6))
 mlp_model <- build_model(Survived ~ .,
                          learn_method = "mlpML",
